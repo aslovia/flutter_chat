@@ -12,6 +12,7 @@ import 'package:flutter_chat/utils/Loading.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
   final String currentUserId;
@@ -22,7 +23,8 @@ class HomeScreen extends StatefulWidget {
   _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   final FirebaseMessaging firebaseMessaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
@@ -37,12 +39,34 @@ class _HomeScreenState extends State<HomeScreen> {
     const Choice(title: 'Log out', icon: Icons.exit_to_app),
   ];
 
+  final List<Tab> tabs = <Tab>[
+    Tab(icon: Icon(Icons.chat), text: "Chat"),
+    Tab(icon: Icon(Icons.people), text: "Friends")
+  ];
+
+  late TabController _tabController;
+  SharedPreferences? prefs;
+  String? id;
+
   @override
   void initState() {
     super.initState();
+    _getCredential();
     registerNotification();
     configLocalNotification();
+    _tabController = TabController(length: tabs.length, vsync: this);
     listScrollController.addListener(scrollListener);
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _tabController.dispose();
+  }
+
+  _getCredential() async {
+    prefs = await SharedPreferences.getInstance();
+    id = prefs?.getString('id') ?? '';
   }
 
   void registerNotification() {
@@ -240,6 +264,13 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
+        bottom: TabBar(
+          isScrollable: false,
+          unselectedLabelColor: Colors.black45,
+          labelColor: Colors.white,
+          tabs: tabs,
+          controller: _tabController,
+        ),
         actions: <Widget>[
           PopupMenuButton<Choice>(
             onSelected: onItemMenuPress,
@@ -270,33 +301,15 @@ class _HomeScreenState extends State<HomeScreen> {
       body: WillPopScope(
         child: Stack(
           children: <Widget>[
-            // List
-            Container(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('users')
-                    .limit(_limit)
-                    .snapshots(),
-                builder: (BuildContext context,
-                    AsyncSnapshot<QuerySnapshot> snapshot) {
-                  if (snapshot.hasData) {
-                    return ListView.builder(
-                      padding: EdgeInsets.all(10.0),
-                      itemBuilder: (context, index) =>
-                          buildItem(context, snapshot.data?.docs[index]),
-                      itemCount: snapshot.data?.docs.length,
-                      controller: listScrollController,
-                    );
-                  } else {
-                    return Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-                      ),
-                    );
-                  }
-                },
-              ),
-            ),
+            //Tab BarView
+            TabBarView(
+                controller: _tabController,
+                children: tabs
+                    .map((Tab tab) => tab.text == "Chat"
+                            ? buildChat() //chat
+                            : buildFriendsList() //friend list
+                        )
+                    .toList()),
 
             // Loading
             Positioned(
@@ -314,111 +327,37 @@ class _HomeScreenState extends State<HomeScreen> {
     return Future.value(false);
   }
 
-  Widget buildItem(BuildContext context, DocumentSnapshot? document) {
+  Widget buildChat() {
+    return Container(
+      child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .limit(_limit)
+            .snapshots(),
+        builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
+          if (snapshot.hasData) {
+            return ListView.builder(
+              padding: EdgeInsets.all(10.0),
+              itemBuilder: (context, index) =>
+                  buildItemChat(context, snapshot.data?.docs[index]),
+              itemCount: snapshot.data?.docs.length,
+              controller: listScrollController,
+            );
+          } else {
+            return Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+              ),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  Widget buildItemChat(BuildContext context, DocumentSnapshot? document) {
     if (document != null) {
-       Users userChat = Users.fromDocument(document);
-      // if (userChat.id == widget.currentUserId) {
-      //   return SizedBox.shrink();
-      // } else {
-      //   return Container(
-      //     child: TextButton(
-      //       child: Row(
-      //         children: <Widget>[
-      //           Material(
-      //             child: userChat.photoUrl.isNotEmpty
-      //                 ? Image.network(
-      //                     userChat.photoUrl,
-      //                     fit: BoxFit.cover,
-      //                     width: 50.0,
-      //                     height: 50.0,
-      //                     loadingBuilder: (BuildContext context, Widget child,
-      //                         ImageChunkEvent? loadingProgress) {
-      //                       if (loadingProgress == null) return child;
-      //                       return Container(
-      //                         width: 50,
-      //                         height: 50,
-      //                         child: Center(
-      //                           child: CircularProgressIndicator(
-      //                             color: Colors.black,
-      //                             value: loadingProgress.expectedTotalBytes !=
-      //                                         null &&
-      //                                     loadingProgress.expectedTotalBytes !=
-      //                                         null
-      //                                 ? loadingProgress.cumulativeBytesLoaded /
-      //                                     loadingProgress.expectedTotalBytes!
-      //                                 : null,
-      //                           ),
-      //                         ),
-      //                       );
-      //                     },
-      //                     errorBuilder: (context, object, stackTrace) {
-      //                       return Icon(
-      //                         Icons.account_circle,
-      //                         size: 50.0,
-      //                         color: Colors.grey,
-      //                       );
-      //                     },
-      //                   )
-      //                 : Icon(
-      //                     Icons.account_circle,
-      //                     size: 50.0,
-      //                     color: Colors.grey,
-      //                   ),
-      //             borderRadius: BorderRadius.all(Radius.circular(25.0)),
-      //             clipBehavior: Clip.hardEdge,
-      //           ),
-      //           Flexible(
-      //             child: Container(
-      //               child: Column(
-      //                 children: <Widget>[
-      //                   Container(
-      //                     child: Text(
-      //                       'Nickname: ${userChat.nickname}',
-      //                       maxLines: 1,
-      //                       style: TextStyle(color: Colors.black),
-      //                     ),
-      //                     alignment: Alignment.centerLeft,
-      //                     margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 5.0),
-      //                   ),
-      //                   Container(
-      //                     child: Text(
-      //                       'About me: ${userChat.aboutMe}',
-      //                       maxLines: 1,
-      //                       style: TextStyle(color: Colors.black),
-      //                     ),
-      //                     alignment: Alignment.centerLeft,
-      //                     margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 0.0),
-      //                   )
-      //                 ],
-      //               ),
-      //               margin: EdgeInsets.only(left: 20.0),
-      //             ),
-      //           ),
-      //         ],
-      //       ),
-      //       onPressed: () {
-      //         // Navigator.push(
-      //         //   context,
-      //         //   MaterialPageRoute(
-      //         //     builder: (context) => Chat(
-      //         //       peerId: userChat.id,
-      //         //       peerAvatar: userChat.photoUrl,
-      //         //     ),
-      //         //   ),
-      //         // );
-      //       },
-      //       style: ButtonStyle(
-      //         backgroundColor: MaterialStateProperty.all<Color>(Colors.grey),
-      //         shape: MaterialStateProperty.all<OutlinedBorder>(
-      //           RoundedRectangleBorder(
-      //             borderRadius: BorderRadius.all(Radius.circular(10)),
-      //           ),
-      //         ),
-      //       ),
-      //     ),
-      //     margin: EdgeInsets.only(bottom: 10.0, left: 5.0, right: 5.0),
-      //   );
-      // }
+      Users userChat = Users.fromDocument(document);
       return Container(
         child: TextButton(
           child: Row(
@@ -426,43 +365,43 @@ class _HomeScreenState extends State<HomeScreen> {
               Material(
                 child: userChat.photoUrl.isNotEmpty
                     ? Image.network(
-                  userChat.photoUrl,
-                  fit: BoxFit.cover,
-                  width: 50.0,
-                  height: 50.0,
-                  loadingBuilder: (BuildContext context, Widget child,
-                      ImageChunkEvent? loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Container(
-                      width: 50,
-                      height: 50,
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.black,
-                          value: loadingProgress.expectedTotalBytes !=
-                              null &&
-                              loadingProgress.expectedTotalBytes !=
-                                  null
-                              ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
-                              : null,
-                        ),
-                      ),
-                    );
-                  },
-                  errorBuilder: (context, object, stackTrace) {
-                    return Icon(
-                      Icons.account_circle,
-                      size: 50.0,
-                      color: Colors.grey,
-                    );
-                  },
-                )
+                        userChat.photoUrl,
+                        fit: BoxFit.cover,
+                        width: 50.0,
+                        height: 50.0,
+                        loadingBuilder: (BuildContext context, Widget child,
+                            ImageChunkEvent? loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            width: 50,
+                            height: 50,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.black,
+                                value: loadingProgress.expectedTotalBytes !=
+                                            null &&
+                                        loadingProgress.expectedTotalBytes !=
+                                            null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, object, stackTrace) {
+                          return Icon(
+                            Icons.account_circle,
+                            size: 50.0,
+                            color: Colors.grey,
+                          );
+                        },
+                      )
                     : Icon(
-                  Icons.account_circle,
-                  size: 50.0,
-                  color: Colors.grey,
-                ),
+                        Icons.account_circle,
+                        size: 50.0,
+                        color: Colors.grey,
+                      ),
                 borderRadius: BorderRadius.all(Radius.circular(25.0)),
                 clipBehavior: Clip.hardEdge,
               ),
@@ -472,22 +411,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: <Widget>[
                       Container(
                         child: Text(
-                          'Nickname: ${userChat.nickname}',
+                          userChat.id == id
+                              ? "Pesan Tersimpan"
+                              : userChat.nickname,
                           maxLines: 1,
                           style: TextStyle(color: Colors.black),
                         ),
                         alignment: Alignment.centerLeft,
                         margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 5.0),
                       ),
-                      Container(
-                        child: Text(
-                          'About me: ${userChat.aboutMe}',
-                          maxLines: 1,
-                          style: TextStyle(color: Colors.black),
-                        ),
-                        alignment: Alignment.centerLeft,
-                        margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 0.0),
-                      )
+                      // Container(
+                      //   child: Text(
+                      //     'About me: ${userChat.aboutMe}',
+                      //     maxLines: 1,
+                      //     style: TextStyle(color: Colors.black),
+                      //   ),
+                      //   alignment: Alignment.centerLeft,
+                      //   margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 0.0),
+                      // )
                     ],
                   ),
                   margin: EdgeInsets.only(left: 20.0),
@@ -507,7 +448,7 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           },
           style: ButtonStyle(
-            backgroundColor: MaterialStateProperty.all<Color>(Colors.grey),
+            backgroundColor: MaterialStateProperty.all<Color>(Colors.white),
             shape: MaterialStateProperty.all<OutlinedBorder>(
               RoundedRectangleBorder(
                 borderRadius: BorderRadius.all(Radius.circular(10)),
@@ -517,6 +458,144 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         margin: EdgeInsets.only(bottom: 10.0, left: 5.0, right: 5.0),
       );
+    } else {
+      return SizedBox.shrink();
+    }
+  }
+
+  Widget buildFriendsList() {
+    return Container(
+      child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .limit(_limit)
+            .snapshots(),
+        builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
+          if (snapshot.hasData) {
+            return ListView.builder(
+              padding: EdgeInsets.all(10.0),
+              itemBuilder: (context, index) =>
+                  buildItemFriends(context, snapshot.data?.docs[index]),
+              itemCount: snapshot.data?.docs.length,
+              controller: listScrollController,
+            );
+          } else {
+            return Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+              ),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  Widget buildItemFriends(BuildContext context, DocumentSnapshot? document) {
+    if (document != null) {
+      Users userChat = Users.fromDocument(document);
+      if (userChat.id == widget.currentUserId) {
+        return SizedBox.shrink();
+      } else {
+        return Container(
+          child: TextButton(
+            child: Row(
+              children: <Widget>[
+                Material(
+                  child: userChat.photoUrl.isNotEmpty
+                      ? Image.network(
+                          userChat.photoUrl,
+                          fit: BoxFit.cover,
+                          width: 50.0,
+                          height: 50.0,
+                          loadingBuilder: (BuildContext context, Widget child,
+                              ImageChunkEvent? loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              width: 50,
+                              height: 50,
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.black,
+                                  value: loadingProgress.expectedTotalBytes !=
+                                              null &&
+                                          loadingProgress.expectedTotalBytes !=
+                                              null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                      : null,
+                                ),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, object, stackTrace) {
+                            return Icon(
+                              Icons.account_circle,
+                              size: 50.0,
+                              color: Colors.grey,
+                            );
+                          },
+                        )
+                      : Icon(
+                          Icons.account_circle,
+                          size: 50.0,
+                          color: Colors.grey,
+                        ),
+                  borderRadius: BorderRadius.all(Radius.circular(25.0)),
+                  clipBehavior: Clip.hardEdge,
+                ),
+                Flexible(
+                  child: Container(
+                    child: Column(
+                      children: <Widget>[
+                        Container(
+                          child: Text(
+                            'Nickname: ${userChat.nickname}',
+                            maxLines: 1,
+                            style: TextStyle(color: Colors.black),
+                          ),
+                          alignment: Alignment.centerLeft,
+                          margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 5.0),
+                        ),
+                        Container(
+                          child: Text(
+                            'Tentang Saya: ${userChat.aboutMe}',
+                            maxLines: 1,
+                            style: TextStyle(color: Colors.black),
+                          ),
+                          alignment: Alignment.centerLeft,
+                          margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 0.0),
+                        )
+                      ],
+                    ),
+                    margin: EdgeInsets.only(left: 20.0),
+                  ),
+                ),
+              ],
+            ),
+            onPressed: () {
+              // Navigator.push(
+              //   context,
+              //   MaterialPageRoute(
+              //     builder: (context) => Chat(
+              //       peerId: userChat.id,
+              //       peerAvatar: userChat.photoUrl,
+              //     ),
+              //   ),
+              // );
+            },
+            style: ButtonStyle(
+              backgroundColor: MaterialStateProperty.all<Color>(Colors.white),
+              shape: MaterialStateProperty.all<OutlinedBorder>(
+                RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                ),
+              ),
+            ),
+          ),
+          margin: EdgeInsets.only(bottom: 10.0, left: 5.0, right: 5.0),
+        );
+      }
     } else {
       return SizedBox.shrink();
     }
