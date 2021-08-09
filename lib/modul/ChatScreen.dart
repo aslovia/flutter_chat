@@ -105,7 +105,7 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: Text(
           'CHAT',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
@@ -190,7 +190,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         padding: EdgeInsets.fromLTRB(15.0, 10.0, 15.0, 10.0),
                         width: 200.0,
                         decoration: BoxDecoration(
-                            color: Colors.blueGrey,
+                            color: Colors.green.shade100,
                             borderRadius: BorderRadius.circular(8.0)),
                         margin: EdgeInsets.only(
                             bottom: isLastMessageRight(index) ? 20.0 : 10.0,
@@ -352,12 +352,12 @@ class _ChatScreenState extends State<ChatScreen> {
                       ? Container(
                           child: Text(
                             document.get('content'),
-                            style: TextStyle(color: Colors.white),
+                            style: TextStyle(color: Colors.black),
                           ),
                           padding: EdgeInsets.fromLTRB(15.0, 10.0, 15.0, 10.0),
                           width: 200.0,
                           decoration: BoxDecoration(
-                              color: Colors.black,
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(8.0)),
                           margin: EdgeInsets.only(left: 10.0),
                         )

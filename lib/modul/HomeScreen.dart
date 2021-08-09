@@ -260,7 +260,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'MAIN',
+          'CHAT APP',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
@@ -550,7 +550,7 @@ class _HomeScreenState extends State<HomeScreen>
                       children: <Widget>[
                         Container(
                           child: Text(
-                            'Nickname: ${userChat.nickname}',
+                            userChat.nickname,
                             maxLines: 1,
                             style: TextStyle(color: Colors.black),
                           ),
