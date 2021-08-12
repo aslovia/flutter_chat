@@ -97,7 +97,8 @@ class _LoginScreenState extends State<LoginScreen> {
           await prefs?.setString('id', currentUser!.uid);
           await prefs?.setString('nickname', currentUser!.displayName ?? "");
           await prefs?.setString('photoUrl', currentUser!.photoURL ?? "");
-        } else {
+        }
+        else {
           DocumentSnapshot documentSnapshot = documents[0];
           Users user = Users.fromDocument(documentSnapshot);
           // Write data to local

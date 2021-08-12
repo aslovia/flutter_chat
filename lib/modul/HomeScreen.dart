@@ -157,7 +157,10 @@ class _HomeScreenState extends State<HomeScreen>
     await FirebaseAuth.instance.signOut();
     await googleSignIn.disconnect();
     await googleSignIn.signOut();
-    prefs!.clear();
+    prefs!.remove("id");
+    prefs!.remove("nickname");
+    prefs!.remove("photoUrl");
+    prefs!.remove("aboutMe");
 
     this.setState(() {
       isLoading = false;
@@ -334,7 +337,7 @@ class _HomeScreenState extends State<HomeScreen>
       child: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('history')
-            .doc(id)
+            .doc(widget.currentUserId)
             .collection("chatWith")
             .limit(_limit)
             .snapshots(),
@@ -452,7 +455,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 overflow: TextOverflow.ellipsis,
                               ),
                               alignment: Alignment.centerLeft,
-                              margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 0.0),
+                              margin: EdgeInsets.fromLTRB(0.0, 0.0, 0.0, 0.0),
                             ),
                           ),
                           Container(
