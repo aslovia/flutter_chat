@@ -13,6 +13,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
   final String currentUserId;
@@ -156,6 +157,7 @@ class _HomeScreenState extends State<HomeScreen>
     await FirebaseAuth.instance.signOut();
     await googleSignIn.disconnect();
     await googleSignIn.signOut();
+    prefs!.clear();
 
     this.setState(() {
       isLoading = false;
@@ -306,7 +308,7 @@ class _HomeScreenState extends State<HomeScreen>
                 controller: _tabController,
                 children: tabs
                     .map((Tab tab) => tab.text == "Chat"
-                            ? buildChat() //chat
+                            ? buildHistory() //chat
                             : buildFriendsList() //friend list
                         )
                     .toList()),
@@ -327,11 +329,13 @@ class _HomeScreenState extends State<HomeScreen>
     return Future.value(false);
   }
 
-  Widget buildChat() {
+  Widget buildHistory() {
     return Container(
       child: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('users')
+            .collection('history')
+            .doc(id)
+            .collection("chatWith")
             .limit(_limit)
             .snapshots(),
         builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
@@ -339,7 +343,7 @@ class _HomeScreenState extends State<HomeScreen>
             return ListView.builder(
               padding: EdgeInsets.all(10.0),
               itemBuilder: (context, index) =>
-                  buildItemChat(context, snapshot.data?.docs[index]),
+                  buildItemHistory(context, snapshot.data?.docs[index]),
               itemCount: snapshot.data?.docs.length,
               controller: listScrollController,
             );
@@ -355,17 +359,16 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget buildItemChat(BuildContext context, DocumentSnapshot? document) {
+  Widget buildItemHistory(BuildContext context, DocumentSnapshot? document) {
     if (document != null) {
-      Users userChat = Users.fromDocument(document);
       return Container(
         child: TextButton(
           child: Row(
             children: <Widget>[
               Material(
-                child: userChat.photoUrl.isNotEmpty
+                child: document.get('chatWithAvatar').isNotEmpty
                     ? Image.network(
-                        userChat.photoUrl,
+                        document.get('chatWithAvatar'),
                         fit: BoxFit.cover,
                         width: 50.0,
                         height: 50.0,
@@ -411,24 +414,61 @@ class _HomeScreenState extends State<HomeScreen>
                     children: <Widget>[
                       Container(
                         child: Text(
-                          userChat.id == id
+                          document.get('chatWithId') == id
                               ? "Pesan Tersimpan"
-                              : userChat.nickname,
+                              : document.get('chatWithName'),
                           maxLines: 1,
                           style: TextStyle(color: Colors.black),
                         ),
                         alignment: Alignment.centerLeft,
-                        margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 5.0),
+                        margin: EdgeInsets.fromLTRB(0.0, 0.0, 0.0, 5.0),
                       ),
-                      // Container(
-                      //   child: Text(
-                      //     'About me: ${userChat.aboutMe}',
-                      //     maxLines: 1,
-                      //     style: TextStyle(color: Colors.black),
-                      //   ),
-                      //   alignment: Alignment.centerLeft,
-                      //   margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 0.0),
-                      // )
+                      Row(
+                        children: [
+                          document.get('chatType') == 0
+                              ? Container()
+                              : document.get('chatType') == 1
+                                  ? Icon(
+                                      Icons.image,
+                                      color: Colors.grey,
+                                      size: 15,
+                                    )
+                                  : Icon(
+                                      Icons.sticky_note_2,
+                                      color: Colors.grey,
+                                      size: 15,
+                                    ),
+                          Expanded(
+                            child: Container(
+                              child: Text(
+                                document.get('chatType') == 0
+                                    ? document.get('chatContent')
+                                    : document.get('chatType') == 1
+                                        ? "Foto"
+                                        : "Stiker",
+                                maxLines: 1,
+                                style:
+                                    TextStyle(color: Colors.grey, fontSize: 11),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              alignment: Alignment.centerLeft,
+                              margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 0.0),
+                            ),
+                          ),
+                          Container(
+                            child: Text(
+                              DateFormat('dd MMM kk:mm').format(
+                                  DateTime.fromMillisecondsSinceEpoch(int.parse(
+                                      document.get('chatTimestamp')))),
+                              maxLines: 1,
+                              style:
+                                  TextStyle(color: Colors.grey, fontSize: 11),
+                            ),
+                            alignment: Alignment.centerLeft,
+                            margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 0.0),
+                          )
+                        ],
+                      )
                     ],
                   ),
                   margin: EdgeInsets.only(left: 20.0),
@@ -441,9 +481,9 @@ class _HomeScreenState extends State<HomeScreen>
               context,
               MaterialPageRoute(
                 builder: (context) => ChatScreen(
-                  peerId: userChat.id,
-                  peerAvatar: userChat.photoUrl,
-                ),
+                    peerId: document.get('chatWithId'),
+                    peerAvatar: document.get('chatWithAvatar'),
+                    peerName: document.get('chatWithName')),
               ),
             );
           },
@@ -574,15 +614,15 @@ class _HomeScreenState extends State<HomeScreen>
               ],
             ),
             onPressed: () {
-              // Navigator.push(
-              //   context,
-              //   MaterialPageRoute(
-              //     builder: (context) => Chat(
-              //       peerId: userChat.id,
-              //       peerAvatar: userChat.photoUrl,
-              //     ),
-              //   ),
-              // );
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ChatScreen(
+                      peerId: userChat.id,
+                      peerAvatar: userChat.photoUrl,
+                      peerName: userChat.nickname),
+                ),
+              );
             },
             style: ButtonStyle(
               backgroundColor: MaterialStateProperty.all<Color>(Colors.white),
