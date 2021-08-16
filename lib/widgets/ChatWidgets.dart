@@ -180,11 +180,11 @@ class ChatWidgets {
       String selectedUserId, String selectedUserAvatar, String myID) {
     final size = MediaQuery.of(context).size;
     if (document != null) {
-      if (document.get('idTo') == myID && document.get('isread') == false) {
+      if (document.get('idTo') == myID && document.get('isRead') == false) {
         if (document.reference != null) {
           FirebaseFirestore.instance
               .runTransaction((Transaction myTransaction) async {
-            await myTransaction.update(document.reference, {'isread': true});
+            await myTransaction.update(document.reference, {'isRead': true});
           });
         }
       }
@@ -299,7 +299,7 @@ class ChatWidgets {
                 Padding(
                     padding:
                         const EdgeInsets.only(bottom: 14.0, right: 2, left: 4),
-                    child: document.get('isread')
+                    child: document.get('isRead')
                         ? Container(
                             width: size.width * 0.07,
                             child: Stack(

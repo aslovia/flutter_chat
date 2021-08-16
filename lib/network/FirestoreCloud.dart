@@ -105,7 +105,7 @@ class FirestoreCloud {
           'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
           'content': messageContent,
           'type': messageType,
-          'isread': false,
+          'isRead': false,
         },
       );
     });
