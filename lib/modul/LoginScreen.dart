@@ -1,8 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/modul/HomeScreen.dart';
-import 'package:flutter_chat/models/Users.dart';
+import 'package:flutter_chat/network/FirestoreCloud.dart';
 import 'package:flutter_chat/utils/Loading.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -40,12 +39,15 @@ class _LoginScreenState extends State<LoginScreen> {
     prefs = await SharedPreferences.getInstance();
 
     isLoggedIn = await googleSignIn.isSignedIn();
-    if (isLoggedIn && prefs?.getString('id') != null) {
+    if (isLoggedIn && prefs?.getString('userId') != null) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-            builder: (context) =>
-                HomeScreen(currentUserId: prefs!.getString('id') ?? "")),
+            builder: (context) => HomeScreen(
+                  myID: prefs!.getString('userId') ?? "",
+                  myName: prefs!.getString('userName') ?? "",
+                  myAvatar: prefs!.getString('userAvatar') ?? "",
+                )),
       );
     }
 
@@ -74,49 +76,24 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (firebaseUser != null) {
         // Check is already sign up
-        final QuerySnapshot result = await FirebaseFirestore.instance
-            .collection('users')
-            .where('id', isEqualTo: firebaseUser.uid)
-            .get();
-        final List<DocumentSnapshot> documents = result.docs;
-        if (documents.length == 0) {
-          // Update data to server if new user
-          FirebaseFirestore.instance
-              .collection('users')
-              .doc(firebaseUser.uid)
-              .set({
-            'nickname': firebaseUser.displayName,
-            'photoUrl': firebaseUser.photoURL,
-            'id': firebaseUser.uid,
-            'createdAt': DateTime.now().millisecondsSinceEpoch.toString(),
-            'chattingWith': null
+        FirestoreCloud.instanace
+            .saveUserDataToFirebaseDatabase(firebaseUser.uid,
+                firebaseUser.displayName, firebaseUser.photoURL)
+            .then((userData) {
+              print("ini user data " + userData.toString());
+          Fluttertoast.showToast(msg: "Sign in success");
+          this.setState(() {
+            isLoading = false;
           });
 
-          // Write data to local
-          currentUser = firebaseUser;
-          await prefs?.setString('id', currentUser!.uid);
-          await prefs?.setString('nickname', currentUser!.displayName ?? "");
-          await prefs?.setString('photoUrl', currentUser!.photoURL ?? "");
-        }
-        else {
-          DocumentSnapshot documentSnapshot = documents[0];
-          Users user = Users.fromDocument(documentSnapshot);
-          // Write data to local
-          await prefs?.setString('id', user.id);
-          await prefs?.setString('nickname', user.nickname);
-          await prefs?.setString('photoUrl', user.photoUrl);
-          await prefs?.setString('aboutMe', user.aboutMe);
-        }
-        Fluttertoast.showToast(msg: "Sign in success");
-        this.setState(() {
-          isLoading = false;
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => HomeScreen(
+                      myID: userData[0],
+                      myName: userData[1],
+                      myAvatar: userData[2])));
         });
-
-        Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (context) =>
-                    HomeScreen(currentUserId: firebaseUser.uid)));
       } else {
         Fluttertoast.showToast(msg: "Sign in fail");
         this.setState(() {

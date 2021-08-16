@@ -44,6 +44,8 @@ dependencies:
   flutter_local_notifications: ^5.0.0+4
   image_picker: ^0.7.4
   swipe_to: ^0.0.1+8
+  flutter_app_badger: ^1.2.0
+  cached_network_image: ^3.0.0
 
 dev_dependencies:
   flutter_test:
